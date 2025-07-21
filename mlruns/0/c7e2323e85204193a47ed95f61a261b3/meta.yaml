@@ -1,0 +1,14 @@
+artifact_uri: file:///C:/Users/SERAOE%20TUF%20LAPTOP/Desktop/elyes-mehri-3cinfobo-ml_project/mlruns/0/c7e2323e85204193a47ed95f61a261b3/artifacts
+end_time: 1753087309611
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: c7e2323e85204193a47ed95f61a261b3
+run_name: ML_Pipeline_Execution
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1753087309264
+status: 3
+tags: []
+user_id: SERAOE TUF LAPTOP

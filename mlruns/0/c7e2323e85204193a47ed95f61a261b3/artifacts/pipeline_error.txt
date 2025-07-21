@@ -1,0 +1,1 @@
+Erreur de données/configuration: La colonne cible 'target_column' est introuvable dans le dataset. Veuillez l'adapter.
