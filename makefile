@@ -107,6 +107,13 @@ test-env: install ## Exécute les vérifications d'environnement via main.py --t
 	$(PYTHON) $(MAIN_SCRIPT) --test-env
 	@echo "Vérifications d'environnement terminées."
 
+serve: install ## Lance l'API REST de prédiction avec Uvicorn
+	@echo "Lancement de l'API REST sur http://127.0.0.1:$(API_PORT)..."
+	@if [ -z "$(VIRTUAL_ENV)" ]; then \
+		echo "ERREUR: L'environnement virtuel n'est pas activé. Veuillez exécuter 'source $(VENV_DIR)/bin/activate' d'abord."; \
+		exit 1; \
+	fi
+	uvicorn $(API_SCRIPT):app --host 0.0.0.0 --port $(API_PORT) --reload
 
 # ===============================================
 # Cibles CI (Qualité du code, format, sécurité)
