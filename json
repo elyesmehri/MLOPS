@@ -1,0 +1,17 @@
+curl -X 'POST' \
+  'http://127.0.0.1:8000/predict' \
+  -H 'accept: application/json' \
+  -H 'Content-Type: application/json' \
+  -d '{
+  "CreditScore": 600.0,
+  "Age": 40.0,
+  "Tenure": 3.0,
+  "Balance": 50000.0,
+  "NumOfProducts": 1.0,
+  "HasCrCard": 1.0,
+  "IsActiveMember": 1.0,
+  "EstimatedSalary": 60000.0,
+  "Geography_Germany": 0.0,
+  "Geography_Spain": 0.0,
+  "Gender_Male": 1.0
+}'
