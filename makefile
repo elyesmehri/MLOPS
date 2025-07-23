@@ -1,119 +1,137 @@
-# Makefile pour le projet MLOps de prédiction de désabonnement client
+# Makefile
+#
+# Ce Makefile automatise diverses tâches pour le projet de prédiction de désabonnement client.
+# Il gère l'environnement virtuel, l'installation des dépendances, l'exécution du pipeline ML,
+# le lancement de l'API, les tests, le linting, le formatage, la sécurité et l'intégration MLflow.
 
-# Variables (facultatif mais recommandé pour la flexibilité)
-PYTHON = python3
-PIP = pip
+# Variables
 VENV_DIR = venv
+PYTHON = $(VENV_DIR)/bin/python
+PIP = $(VENV_DIR)/bin/pip
 REQUIREMENTS_FILE = requirements.txt
-MAIN_SCRIPT = main.py
-DATA_FILE = Churn_Modelling.csv
-MODEL_DIR = models
-MODEL_FILE = linear_svc_model.joblib
+MLFLOW_PORT = 5000 # Port pour l'interface utilisateur MLflow
 
-# .PHONY : Déclare des cibles qui ne sont pas des noms de fichiers.
-.PHONY: all setup install activate clean lint format test security help \
-        run train evaluate save load test-env
+# Cibles .PHONY (toujours exécutées, même si un fichier du même nom existe)
+.PHONY: all setup install activate run clean lint format test security help serve mlflow-ui
 
-# Cible par défaut (celle qui est exécutée si vous tapez juste 'make')
-all: run
+# Cible par défaut si 'make' est exécuté sans arguments
+all: install run
 
 # ===============================================
-# Cibles d'installation et de configuration
+# Gestion de l'environnement
 # ===============================================
 
-setup:  ## Crée et active l'environnement virtuel, puis installe les dépendances
-	@echo "Création de l'environnement virtuel '${VENV_DIR}'..."
-	$(PYTHON) -m venv $(VENV_DIR)
-	@echo "Activation de l'environnement virtuel (vous devrez l'activer manuellement dans les futurs terminaux) :"
-	@echo "  source $(VENV_DIR)/bin/activate"
-	@echo "Installation des dépendances..."
-	$(PIP) install -r $(REQUIREMENTS_FILE)
-	@echo "Setup terminé. N'oubliez pas d'activer l'environnement virtuel dans votre terminal : source $(VENV_DIR)/bin/activate"
+setup: ## Crée l'environnement virtuel
+	@echo "Création de l'environnement virtuel..."
+	python3 -m venv $(VENV_DIR)
+	@echo "Environnement virtuel créé dans $(VENV_DIR)."
+	@echo "Pour l'activer : source $(VENV_DIR)/bin/activate"
 
-install:  ## Installe les dépendances dans l'environnement virtuel activé
-	@echo "Installation des dépendances depuis $(REQUIREMENTS_FILE)..."
-	@if [ -z "$(VIRTUAL_ENV)" ]; then \
-		echo "AVERTISSEMENT: L'environnement virtuel n'est pas activé. Veuillez exécuter 'source $(VENV_DIR)/bin/activate' d'abord."; \
+install: setup ## Installe les dépendances dans l'environnement virtuel
+	@echo "Activation de l'environnement virtuel et installation des dépendances..."
+	@if [ ! -d "$(VENV_DIR)" ]; then \
+		echo "L'environnement virtuel n'existe pas. Exécutez 'make setup' d'abord."; \
 		exit 1; \
 	fi
-	$(PIP) install -r $(REQUIREMENTS_FILE)
+	source $(VENV_DIR)/bin/activate && $(PIP) install -r $(REQUIREMENTS_FILE)
 	@echo "Dépendances installées."
 
 activate: ## Affiche les instructions pour activer l'environnement virtuel
-	@echo "Pour activer l'environnement virtuel, utilisez :"
-	@echo "  source $(VENV_DIR)/bin/activate"
-	@echo "Pour Windows (CMD) :"
-	@echo "  $(VENV_DIR)\\Scripts\\activate.bat"
-	@echo "Pour Windows (PowerShell) :"
-	@echo "  $(VENV_DIR)\\Scripts\\Activate.ps1"
+	@echo "Pour activer l'environnement virtuel :"
+	@echo "source $(VENV_DIR)/bin/activate"
 
+clean: ## Supprime les fichiers temporaires et l'environnement virtuel
+	@echo "Nettoyage du projet..."
+	rm -rf $(VENV_DIR) __pycache__/ .pytest_cache/ .mypy_cache/ .ipynb_checkpoints/
+	rm -rf models/*.joblib
+	rm -rf mlruns/ # Supprime les runs MLflow locaux (par défaut)
+	rm -f mlflow.db # Supprime la base de données SQLite de MLflow si utilisée
+	@echo "Nettoyage terminé."
 
 # ===============================================
-# Cibles d'exécution du modèle via main.py
+# Exécution du pipeline ML
 # ===============================================
 
-# La cible 'run' va exécuter toutes les étapes en utilisant '--all'
-run: install ## Exécute le pipeline ML complet (préparation, entraînement, évaluation, sauvegarde) via main.py --all
-	@echo "Exécution du pipeline ML complet via '$(MAIN_SCRIPT) --all'..."
+run: install ## Exécute le pipeline ML complet (préparation, entraînement, évaluation, sauvegarde)
+	@echo "Lancement du pipeline ML complet avec intégration MLflow..."
 	@if [ -z "$(VIRTUAL_ENV)" ]; then \
-		echo "ERREUR: L'environnement virtuel n'est pas activé. Veuillez exécuter 'source $(VENV_DIR)/bin/activate' d'abord."; \
+		echo "ERREUR: L'environnement virtuel n'est pas activé. Veuillez exécuter 'source $(VENV_DIR)/bin/activate' d'abord ou utiliser 'make all'."; \
 		exit 1; \
 	fi
-	$(PYTHON) $(MAIN_SCRIPT) --all
-	@echo "Pipeline ML complet terminé."
+	$(PYTHON) main.py --all
+	@echo "Pipeline ML terminé. Vérifiez l'interface MLflow pour les résultats."
 
-train: install ## Exécute uniquement l'étape d'entraînement via main.py --train
-	@echo "Exécution de l'étape d'entraînement via '$(MAIN_SCRIPT) --train'..."
-	@if [ -z "$(VIRTUAL_ENV)" ]; then \
-		echo "ERREUR: L'environnement virtuel n'est pas activé. Veuillez exécuter 'source $(VENV_DIR)/bin/activate' d'abord."; \
-		exit 1; \
-	fi
-	$(PYTHON) $(MAIN_SCRIPT) --train
-	@echo "Étape d'entraînement terminée."
+# Cibles granulaires pour main.py (si besoin d'exécuter des étapes spécifiques)
+train: install ## Exécute l'étape d'entraînement
+	@echo "Lancement de l'étape d'entraînement..."
+	@if [ -z "$(VIRTUAL_ENV)" ]; then source $(VENV_DIR)/bin/activate; fi
+	$(PYTHON) main.py --train
 
-evaluate: install ## Exécute uniquement l'étape d'évaluation via main.py --evaluate
-	@echo "Exécution de l'étape d'évaluation via '$(MAIN_SCRIPT) --evaluate'..."
-	@if [ -z "$(VIRTUAL_ENV)" ]; then \
-		echo "ERREUR: L'environnement virtuel n'est pas activé. Veuillez exécuter 'source $(VENV_DIR)/bin/activate' d'abord."; \
-		exit 1; \
-	fi
-	$(PYTHON) $(MAIN_SCRIPT) --evaluate --eval-from-saved # Par défaut, évalue à partir du modèle sauvegardé
-	@echo "Étape d'évaluation terminée."
+evaluate: install ## Exécute l'étape d'évaluation
+	@echo "Lancement de l'étape d'évaluation..."
+	@if [ -z "$(VIRTUAL_ENV)" ]; then source $(VENV_DIR)/bin/activate; fi
+	$(PYTHON) main.py --evaluate
 
-save: install ## Exécute uniquement l'étape de sauvegarde via main.py --save
-	@echo "Exécution de l'étape de sauvegarde via '$(MAIN_SCRIPT) --save'..."
-	@if [ -z "$(VIRTUAL_ENV)" ]; then \
-		echo "ERREUR: L'environnement virtuel n'est pas activé. Veuillez exécuter 'source $(VENV_DIR)/bin/activate' d'abord."; \
-		exit 1; \
-	fi
-	$(PYTHON) $(MAIN_SCRIPT) --save
-	@echo "Étape de sauvegarde terminée."
+save: install ## Exécute l'étape de sauvegarde
+	@echo "Lancement de l'étape de sauvegarde..."
+	@if [ -z "$(VIRTUAL_ENV)" ]; then source $(VENV_DIR)/bin/activate; fi
+	$(PYTHON) main.py --save
 
-load: install ## Exécute uniquement l'étape de chargement via main.py --load
-	@echo "Exécution de l'étape de chargement via '$(MAIN_SCRIPT) --load'..."
-	@if [ -z "$(VIRTUAL_ENV)" ]; then \
-		echo "ERREUR: L'environnement virtuel n'est pas activé. Veuillez exécuter 'source $(VENV_DIR)/bin/activate' d'abord."; \
-		exit 1; \
-	fi
-	$(PYTHON) $(MAIN_SCRIPT) --load
-	@echo "Étape de chargement terminée."
+load: install ## Exécute l'étape de chargement
+	@echo "Lancement de l'étape de chargement..."
+	@if [ -z "$(VIRTUAL_ENV)" ]; then source $(VENV_DIR)/bin/activate; fi
+	$(PYTHON) main.py --load
 
-test-env: install ## Exécute les vérifications d'environnement via main.py --test-env
-	@echo "Exécution des vérifications d'environnement via '$(MAIN_SCRIPT) --test-env'..."
-	@if [ -z "$(VIRTUAL_ENV)" ]; then \
-		echo "ERREUR: L'environnement virtuel n'est pas activé. Veuillez exécuter 'source $(VENV_DIR)/bin/activate' d'abord."; \
-		exit 1; \
-	fi
-	$(PYTHON) $(MAIN_SCRIPT) --test-env
-	@echo "Vérifications d'environnement terminées."
+test-env: install ## Exécute les vérifications de l'environnement
+	@echo "Lancement des vérifications de l'environnement..."
+	@if [ -z "$(VIRTUAL_ENV)" ]; then source $(VENV_DIR)/bin/activate; fi
+	$(PYTHON) main.py --test-env
 
-serve: install ## Lance l'API REST de prédiction avec Uvicorn
-	@echo "Lancement de l'API REST sur http://127.0.0.1:$(API_PORT)..."
+# ===============================================
+# Lancement de l'API FastAPI
+# ===============================================
+
+serve: install ## Lance l'application FastAPI
+	@echo "Lancement de l'API FastAPI..."
 	@if [ -z "$(VIRTUAL_ENV)" ]; then \
 		echo "ERREUR: L'environnement virtuel n'est pas activé. Veuillez exécuter 'source $(VENV_DIR)/bin/activate' d'abord."; \
 		exit 1; \
 	fi
-	uvicorn $(API_SCRIPT):app --host 0.0.0.0 --port $(API_PORT) --reload
+	$(PYTHON) -m uvicorn app:app --host 0.0.0.0 --port 8000 --reload
+	@echo "API FastAPI lancée sur http://127.0.0.1:8000"
+
+# ===============================================
+# Cibles de qualité de code et de sécurité
+# ===============================================
+
+lint: install ## Exécute Flake8 pour vérifier le style du code
+	@echo "Exécution de Flake8..."
+	@if [ -z "$(VIRTUAL_ENV)" ]; then source $(VENV_DIR)/bin/activate; fi
+	$(PYTHON) -m flake8 .
+	@echo "Flake8 terminé."
+
+format: install ## Formate le code avec Black
+	@echo "Formatage du code avec Black..."
+	@if [ -z "$(VIRTUAL_ENV)" ]; then source $(VENV_DIR)/bin/activate; fi
+	$(PYTHON) -m black .
+	@echo "Formatage terminé."
+
+test: install ## Exécute Pytest pour les tests unitaires
+	@echo "Exécution des tests unitaires avec Pytest..."
+	@if [ -z "$(VIRTUAL_ENV)" ]; then source $(VENV_DIR)/bin/activate; fi
+	$(PYTHON) -m pytest
+	@echo "Tests terminés."
+
+security: install ## Vérifie les dépendances pour les vulnérabilités avec Safety
+	@echo "Vérification des vulnérabilités de sécurité avec Safety..."
+	@if [ -z "$(VIRTUAL_ENV)" ]; then source $(VENV_DIR)/bin/activate; fi
+	$(PIP) install safety # Installer safety si ce n'est pas déjà fait
+	$(PYTHON) -m safety check -r $(REQUIREMENTS_FILE)
+	@echo "Vérification de sécurité terminée."
+
+# ===============================================
+# Cibles MLflow
+# ===============================================
 
 mlflow-ui: ## Lance l'interface utilisateur MLflow avec un backend SQLite
 	@echo "Lancement de l'interface utilisateur MLflow sur http://0.0.0.0:$(MLFLOW_PORT) avec backend SQLite..."
@@ -121,56 +139,11 @@ mlflow-ui: ## Lance l'interface utilisateur MLflow avec un backend SQLite
 		echo "ERREUR: L'environnement virtuel n'est pas activé. Veuillez exécuter 'source $(VENV_DIR)/bin/activate' d'abord."; \
 		exit 1; \
 	fi
-	mlflow ui --backend-store-uri sqlite:///mlflow.db --host 0.0.0.0 --port $(MLFLOW_PORT) # Ajout du backend et de l'hôte
+	mlflow ui --backend-store-uri sqlite:///mlflow.db --host 0.0.0.0 --port $(MLFLOW_PORT)
 
 # ===============================================
-# Cibles CI (Qualité du code, format, sécurité)
+# Aide
 # ===============================================
 
-lint: install ## Exécute un linter (ex: Flake8) pour vérifier la qualité du code
-	@echo "Vérification de la qualité du code avec Flake8..."
-	$(PIP) install flake8 > /dev/null 2>&1 || true
-	flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-	flake8 . --count --exit-zero --max-complexity=10 --max-line-length=120 --statistics
-	@echo "Vérification Flake8 terminée."
-
-format: install ## Formate le code avec Black (s'assurer qu'il est installé)
-	@echo "Formatage du code avec Black..."
-	$(PIP) install black > /dev/null 2>&1 || true
-	black .
-	@echo "Formatage Black terminé."
-
-test: install ## Exécute les tests unitaires (nécessite Pytest)
-	@echo "Exécution des tests unitaires avec Pytest..."
-	$(PIP) install pytest > /dev/null 2>&1 || true
-	pytest
-	@echo "Tests unitaires terminés."
-
-security: install ## Vérifie la sécurité des dépendances (nécessite Safety)
-	@echo "Vérification de la sécurité des dépendances avec Safety..."
-	$(PIP) install safety > /dev/null 2>&1 || true
-	safety check -r $(REQUIREMENTS_FILE)
-	@echo "Vérification de sécurité Safety terminée."
-
-ci: lint format test security run ## Exécute toutes les étapes CI et le pipeline ML
-	@echo "Toutes les étapes CI et le pipeline ML ont été exécutées."
-
-# ===============================================
-# Cibles de nettoyage
-# ===============================================
-
-clean: ## Nettoie les fichiers générés par le projet
-	@echo "Nettoyage des fichiers temporaires et des builds..."
-	rm -rf __pycache__
-	rm -rf $(VENV_DIR)
-	rm -rf .pytest_cache
-	rm -rf .ipynb_checkpoints
-	rm -f *.pyc
-	rm -rf $(MODEL_DIR)/* # Supprime les modèles sauvegardés
-	@echo "Nettoyage terminé."
-
-# ===============================================
-# Cible d'aide
-# ===============================================
 help: ## Affiche ce message d'aide
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-25s\033[0m %s\n", $$1, $$2}'
