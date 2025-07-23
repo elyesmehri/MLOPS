@@ -115,6 +115,14 @@ serve: install ## Lance l'API REST de prédiction avec Uvicorn
 	fi
 	uvicorn $(API_SCRIPT):app --host 0.0.0.0 --port $(API_PORT) --reload
 
+mlflow-ui: ## Lance l'interface utilisateur MLflow
+	@echo "Lancement de l'interface utilisateur MLflow sur http://127.0.0.1:$(MLFLOW_PORT)..."
+	@if [ -z "$(VIRTUAL_ENV)" ]; then \
+		echo "ERREUR: L'environnement virtuel n'est pas activé. Veuillez exécuter 'source $(VENV_DIR)/bin/activate' d'abord."; \
+		exit 1; \
+	fi
+	mlflow ui --port $(MLFLOW_PORT) # Assurez-vous que cette ligne commence par une TABULATION
+
 # ===============================================
 # Cibles CI (Qualité du code, format, sécurité)
 # ===============================================
