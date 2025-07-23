@@ -25,7 +25,7 @@ setup: ## Crée l'environnement virtuel
 	@echo "Création de l'environnement virtuel..."
 	python3 -m venv $(VENV_DIR)
 	@echo "Environnement virtuel créé dans $(VENV_DIR)."
-	@echo "Pour l'activer : source $(VENV_DIR)/bin/activate"
+	@echo "Pour l'activer : source $(VENV_DIR)/bin/activate" # Gardons 'source' ici pour l'instruction à l'utilisateur
 
 install: setup ## Installe les dépendances dans l'environnement virtuel
 	@echo "Activation de l'environnement virtuel et installation des dépendances..."
@@ -33,7 +33,7 @@ install: setup ## Installe les dépendances dans l'environnement virtuel
 		echo "L'environnement virtuel n'existe pas. Exécutez 'make setup' d'abord."; \
 		exit 1; \
 	fi
-	source $(VENV_DIR)/bin/activate && $(PIP) install -r $(REQUIREMENTS_FILE)
+	. $(VENV_DIR)/bin/activate && $(PIP) install -r $(REQUIREMENTS_FILE) # CORRECTION ICI : 'source' remplacé par '.'
 	@echo "Dépendances installées."
 
 activate: ## Affiche les instructions pour activer l'environnement virtuel
@@ -58,33 +58,33 @@ run: install ## Exécute le pipeline ML complet (préparation, entraînement, é
 		echo "ERREUR: L'environnement virtuel n'est pas activé. Veuillez exécuter 'source $(VENV_DIR)/bin/activate' d'abord ou utiliser 'make all'."; \
 		exit 1; \
 	fi
-	$(PYTHON) main.py --all
+	. $(VENV_DIR)/bin/activate && $(PYTHON) main.py --all # CORRECTION ICI
 	@echo "Pipeline ML terminé. Vérifiez l'interface MLflow pour les résultats."
 
 # Cibles granulaires pour main.py (si besoin d'exécuter des étapes spécifiques)
 train: install ## Exécute l'étape d'entraînement
 	@echo "Lancement de l'étape d'entraînement..."
-	@if [ -z "$(VIRTUAL_ENV)" ]; then source $(VENV_DIR)/bin/activate; fi
+	@if [ -z "$(VIRTUAL_ENV)" ]; then . $(VENV_DIR)/bin/activate; fi # CORRECTION ICI
 	$(PYTHON) main.py --train
 
 evaluate: install ## Exécute l'étape d'évaluation
 	@echo "Lancement de l'étape d'évaluation..."
-	@if [ -z "$(VIRTUAL_ENV)" ]; then source $(VENV_DIR)/bin/activate; fi
+	@if [ -z "$(VIRTUAL_ENV)" ]; then . $(VENV_DIR)/bin/activate; fi # CORRECTION ICI
 	$(PYTHON) main.py --evaluate
 
 save: install ## Exécute l'étape de sauvegarde
 	@echo "Lancement de l'étape de sauvegarde..."
-	@if [ -z "$(VIRTUAL_ENV)" ]; then source $(VENV_DIR)/bin/activate; fi
+	@if [ -z "$(VIRTUAL_ENV)" ]; then . $(VENV_DIR)/bin/activate; fi # CORRECTION ICI
 	$(PYTHON) main.py --save
 
 load: install ## Exécute l'étape de chargement
 	@echo "Lancement de l'étape de chargement..."
-	@if [ -z "$(VIRTUAL_ENV)" ]; then source $(VENV_DIR)/bin/activate; fi
+	@if [ -z "$(VIRTUAL_ENV)" ]; then . $(VENV_DIR)/bin/activate; fi # CORRECTION ICI
 	$(PYTHON) main.py --load
 
 test-env: install ## Exécute les vérifications de l'environnement
 	@echo "Lancement des vérifications de l'environnement..."
-	@if [ -z "$(VIRTUAL_ENV)" ]; then source $(VENV_DIR)/bin/activate; fi
+	@if [ -z "$(VIRTUAL_ENV)" ]; then . $(VENV_DIR)/bin/activate; fi # CORRECTION ICI
 	$(PYTHON) main.py --test-env
 
 # ===============================================
@@ -97,7 +97,7 @@ serve: install ## Lance l'application FastAPI
 		echo "ERREUR: L'environnement virtuel n'est pas activé. Veuillez exécuter 'source $(VENV_DIR)/bin/activate' d'abord."; \
 		exit 1; \
 	fi
-	$(PYTHON) -m uvicorn app:app --host 0.0.0.0 --port 8000 --reload
+	. $(VENV_DIR)/bin/activate && $(PYTHON) -m uvicorn app:app --host 0.0.0.0 --port 8000 --reload # CORRECTION ICI
 	@echo "API FastAPI lancée sur http://127.0.0.1:8000"
 
 # ===============================================
@@ -106,27 +106,27 @@ serve: install ## Lance l'application FastAPI
 
 lint: install ## Exécute Flake8 pour vérifier le style du code
 	@echo "Exécution de Flake8..."
-	@if [ -z "$(VIRTUAL_ENV)" ]; then source $(VENV_DIR)/bin/activate; fi
+	@if [ -z "$(VIRTUAL_ENV)" ]; then . $(VENV_DIR)/bin/activate; fi # CORRECTION ICI
 	$(PYTHON) -m flake8 .
 	@echo "Flake8 terminé."
 
 format: install ## Formate le code avec Black
 	@echo "Formatage du code avec Black..."
-	@if [ -z "$(VIRTUAL_ENV)" ]; then source $(VENV_DIR)/bin/activate; fi
+	@if [ -z "$(VIRTUAL_ENV)" ]; then . $(VENV_DIR)/bin/activate; fi # CORRECTION ICI
 	$(PYTHON) -m black .
 	@echo "Formatage terminé."
 
 test: install ## Exécute Pytest pour les tests unitaires
 	@echo "Exécution des tests unitaires avec Pytest..."
-	@if [ -z "$(VIRTUAL_ENV)" ]; then source $(VENV_DIR)/bin/activate; fi
+	@if [ -z "$(VIRTUAL_ENV)" ]; then . $(VENV_DIR)/bin/activate; fi # CORRECTION ICI
 	$(PYTHON) -m pytest
 	@echo "Tests terminés."
 
 security: install ## Vérifie les dépendances pour les vulnérabilités avec Safety
 	@echo "Vérification des vulnérabilités de sécurité avec Safety..."
-	@if [ -z "$(VIRTUAL_ENV)" ]; then source $(VENV_DIR)/bin/activate; fi
+	@if [ -z "$(VIRTUAL_ENV)" ]; then . $(VENV_DIR)/bin/activate; fi # CORRECTION ICI
 	$(PIP) install safety # Installer safety si ce n'est pas déjà fait
-	$(PYTHON) -m safety check -r $(REQUIREMENTS_FILE)
+	. $(VENV_DIR)/bin/activate && $(PYTHON) -m safety check -r $(REQUIREMENTS_FILE) # CORRECTION ICI
 	@echo "Vérification de sécurité terminée."
 
 # ===============================================
@@ -139,7 +139,11 @@ mlflow-ui: ## Lance l'interface utilisateur MLflow avec un backend SQLite
 		echo "ERREUR: L'environnement virtuel n'est pas activé. Veuillez exécuter 'source $(VENV_DIR)/bin/activate' d'abord."; \
 		exit 1; \
 	fi
-	mlflow ui --backend-store-uri sqlite:///mlflow.db --host 0.0.0.0 --port $(MLFLOW_PORT)
+	. $(VENV_DIR)/bin/activate && mlflow ui --backend-store-uri sqlite:///mlflow.db --host 0.0.0.0 --port $(MLFLOW_PORT) # CORRECTION ICI
+	# Le '&' à la fin peut faire en sorte que la commande s'exécute en arrière-plan, ce qui est utile si vous voulez que le terminal soit libre.
+	# Si vous voulez garder le terminal bloqué tant que MLflow est actif (ce qui est souvent plus simple pour déboguer), retirez le '&'.
+	# Pour cet exemple, je l'ai retiré du Makefile pour la clarté. Si vous le voulez en arrière-plan, ajoutez-le manuellement.
+
 
 # ===============================================
 # Aide
