@@ -115,13 +115,13 @@ serve: install ## Lance l'API REST de prédiction avec Uvicorn
 	fi
 	uvicorn $(API_SCRIPT):app --host 0.0.0.0 --port $(API_PORT) --reload
 
-mlflow-ui: ## Lance l'interface utilisateur MLflow
-	@echo "Lancement de l'interface utilisateur MLflow sur http://127.0.0.1:$(MLFLOW_PORT)..."
+mlflow-ui: ## Lance l'interface utilisateur MLflow avec un backend SQLite
+	@echo "Lancement de l'interface utilisateur MLflow sur http://0.0.0.0:$(MLFLOW_PORT) avec backend SQLite..."
 	@if [ -z "$(VIRTUAL_ENV)" ]; then \
 		echo "ERREUR: L'environnement virtuel n'est pas activé. Veuillez exécuter 'source $(VENV_DIR)/bin/activate' d'abord."; \
 		exit 1; \
 	fi
-	mlflow ui --port $(MLFLOW_PORT) # Assurez-vous que cette ligne commence par une TABULATION
+	mlflow ui --backend-store-uri sqlite:///mlflow.db --host 0.0.0.0 --port $(MLFLOW_PORT) # Ajout du backend et de l'hôte
 
 # ===============================================
 # Cibles CI (Qualité du code, format, sécurité)
